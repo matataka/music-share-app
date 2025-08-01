@@ -1,0 +1,4 @@
+com/example/musicshare/repository/TrackRepository.class
+com/example/musicshare/MusicShareApplication.class
+com/example/musicshare/controller/TrackController.class
+com/example/musicshare/model/Track.class
