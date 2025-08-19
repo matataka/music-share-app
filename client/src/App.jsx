@@ -55,6 +55,22 @@ function App() {
     }
   }, [selectedTrack]);
 
+  // 曲削除
+  const handleDelete = async (track) => {
+    if (!window.confirm('この曲を削除してもよろしいですか？')) {
+      return;
+    }
+    
+    const res = await fetch(`/api/tracks/${track.id}`, {
+      method: 'DELETE'
+    });
+    
+    if (res.ok) {
+      // 削除成功したら一覧を再取得
+      await fetchTracks();
+    }
+  };
+
   return (
     <div style={{ maxWidth: 480, margin: '0 auto', padding: 16 }}>
       <h1>曲アップロード＆共有アプリ</h1>
@@ -68,6 +84,12 @@ function App() {
           <li key={track.id} style={{ marginBottom: 8 }}>
             <button onClick={() => handlePlay(track)} style={{ marginRight: 8 }}>再生</button>
             {track.title || track.name}
+            <button 
+              onClick={() => handleDelete(track)} 
+              style={{ marginLeft: 8, backgroundColor: '#ff4444', color: 'white' }}
+            >
+              削除
+            </button>
             <span style={{ marginLeft: 8, color: '#888', fontSize: 12 }}>
               {track.createdAt ? (() => {
                 // ISO8601文字列をDateに変換（Safari対応）

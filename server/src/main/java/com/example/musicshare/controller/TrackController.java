@@ -19,6 +19,7 @@ import java.nio.file.Paths;
 import java.util.List;
 import java.util.Optional;
 import jakarta.annotation.PostConstruct;
+import com.mpatric.mp3agic.Mp3File;
 
 @RestController
 @RequestMapping("/api/tracks")
@@ -50,17 +51,32 @@ public class TrackController {
         String filename = System.currentTimeMillis() + "_" + StringUtils.cleanPath(file.getOriginalFilename());
         Path filePath = Paths.get(uploadDir, filename);
         Files.write(filePath, file.getBytes());
-        // 曲の長さ（分）はダミーで1分とする
+
         Track track = new Track();
         track.setTitle(file.getOriginalFilename());
-        track.setLengthMinutes(1); // TODO: 実際の長さ取得
+        
+        // MP3ファイルの場合、実際の長さを取得
+        if (file.getOriginalFilename().toLowerCase().endsWith(".mp3")) {
+            try {
+                Mp3File mp3file = new Mp3File(filePath);
+                long lengthInSeconds = mp3file.getLengthInSeconds();
+                track.setLengthMinutes((int) Math.ceil(lengthInSeconds / 60.0));
+            } catch (Exception e) {
+                // MP3解析エラー時は1分とする
+                track.setLengthMinutes(1);
+            }
+        } else {
+            // MP3以外は1分とする
+            track.setLengthMinutes(1);
+        }
+
         track.setFilePath(filePath.toString());
         return trackRepository.save(track);
     }
 
     // 曲再生（ファイル取得）
     @GetMapping("/{id}/play")
-    public ResponseEntity<byte[]> playTrack(@PathVariable Long id) throws IOException {
+    public ResponseEntity<byte[]> playTrack(@PathVariable("id") Long id) throws IOException {
         Optional<Track> opt = trackRepository.findById(id);
         if (opt.isEmpty()) return ResponseEntity.notFound().build();
         Track track = opt.get();
@@ -73,5 +89,26 @@ public class TrackController {
                 .header(HttpHeaders.CONTENT_DISPOSITION, "inline; filename=" + track.getTitle())
                 .contentType(MediaType.parseMediaType(mimeType))
                 .body(data);
+    }
+
+    // 曲削除
+    @DeleteMapping("/{id}")
+    public ResponseEntity<Void> deleteTrack(@PathVariable("id") Long id) {
+        Optional<Track> opt = trackRepository.findById(id);
+        if (opt.isEmpty()) {
+            return ResponseEntity.notFound().build();
+        }
+
+        Track track = opt.get();
+        // ファイルを削除
+        try {
+            Files.deleteIfExists(Paths.get(track.getFilePath()));
+        } catch (IOException e) {
+            // ファイル削除に失敗しても、DBからは削除する
+        }
+
+        // DBから削除
+        trackRepository.delete(track);
+        return ResponseEntity.ok().build();
     }
 }
